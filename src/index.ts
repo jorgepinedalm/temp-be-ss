@@ -24,7 +24,8 @@ app.get('/', (req, res) => {
       'GET /institutions/teams/',
       'GET /institutions/athletes/',
       'GET /availability/overview',
-      'GET /availability/overall'
+      'GET /availability/overall',
+      'GET /availability/injury-days-lost/'
     ]
   });
 });
@@ -47,6 +48,7 @@ app.listen(PORT, () => {
   console.log(`🏃 Athletes endpoint: http://localhost:${PORT}/institutions/athletes/`);
   console.log(`📈 Availability overview: http://localhost:${PORT}/availability/overview`);
   console.log(`📈 Availability overall: http://localhost:${PORT}/availability/overall`);
+  console.log(`🏥 Injury days lost: http://localhost:${PORT}/availability/injury-days-lost/`);
 });
 
 export default app;

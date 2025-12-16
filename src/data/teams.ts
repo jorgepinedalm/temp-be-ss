@@ -6,7 +6,7 @@ export const teamsData: Team[] = [
     name: "Los Tigres",
     color: "#FF6B35",
     initials: "TIG",
-    image: "https://via.placeholder.com/150/FF6B35/FFFFFF?text=TIG",
+    image: "https://picsum.photos/200/300",
     athletes_count: 25
   },
   {
@@ -14,7 +14,7 @@ export const teamsData: Team[] = [
     name: "Águilas Doradas",
     color: "#FFD700",
     initials: "AGU",
-    image: "https://via.placeholder.com/150/FFD700/000000?text=AGU",
+    image: null,
     athletes_count: 18
   },
   {
@@ -22,7 +22,7 @@ export const teamsData: Team[] = [
     name: "Leones Azules",
     color: "#1E90FF",
     initials: "LEO",
-    image: "https://via.placeholder.com/150/1E90FF/FFFFFF?text=LEO",
+    image: null,
     athletes_count: 22
   },
   {
@@ -30,7 +30,7 @@ export const teamsData: Team[] = [
     name: "Pumas Verdes",
     color: "#32CD32",
     initials: "PUM",
-    image: "https://via.placeholder.com/150/32CD32/FFFFFF?text=PUM",
+    image: "https://picsum.photos/200/300",
     athletes_count: 30
   },
   {
@@ -38,7 +38,7 @@ export const teamsData: Team[] = [
     name: "Halcones Rojos",
     color: "#DC143C",
     initials: "HAL",
-    image: "https://via.placeholder.com/150/DC143C/FFFFFF?text=HAL",
+    image: "https://picsum.photos/200/300",
     athletes_count: 16
   },
   {
@@ -46,7 +46,7 @@ export const teamsData: Team[] = [
     name: "Lobos Grises",
     color: "#696969",
     initials: "LOB",
-    image: "https://via.placeholder.com/150/696969/FFFFFF?text=LOB",
+    image: null,
     athletes_count: 27
   },
   {
@@ -54,7 +54,7 @@ export const teamsData: Team[] = [
     name: "Panteras Negras",
     color: "#000000",
     initials: "PAN",
-    image: "https://via.placeholder.com/150/000000/FFFFFF?text=PAN",
+    image: "https://picsum.photos/200/300",
     athletes_count: 21
   },
   {
@@ -62,7 +62,7 @@ export const teamsData: Team[] = [
     name: "Delfines Celestes",
     color: "#87CEEB",
     initials: "DEL",
-    image: "https://via.placeholder.com/150/87CEEB/000000?text=DEL",
+    image: null,
     athletes_count: 19
   },
   {
@@ -70,7 +70,7 @@ export const teamsData: Team[] = [
     name: "Serpientes Violetas",
     color: "#8A2BE2",
     initials: "SER",
-    image: "https://via.placeholder.com/150/8A2BE2/FFFFFF?text=SER",
+    image: null,
     athletes_count: 24
   },
   {
@@ -78,7 +78,7 @@ export const teamsData: Team[] = [
     name: "Osos Marrones",
     color: "#8B4513",
     initials: "OSO",
-    image: "https://via.placeholder.com/150/8B4513/FFFFFF?text=OSO",
+    image: "https://picsum.photos/200/300",
     athletes_count: 28
   }
 ];

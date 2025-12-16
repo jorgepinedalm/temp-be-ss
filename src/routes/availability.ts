@@ -4,7 +4,12 @@ const router = Router();
 
 // Helper function to generate random percentage
 const getRandomPercentage = (): number => {
-  return Math.round((Math.random() * 100 + Number.EPSILON) * 100) / 100;
+  return Math.round((Math.random() * 50 + 50 + Number.EPSILON) * 100) / 100;
+};
+
+// Helper function to generate random injury days
+const getRandomInjuryDays = (): number => {
+  return Math.floor(Math.random() * 36) + 15; // Random integer between 15 and 50
 };
 
 // Helper function to format date as YYYY-MM-DD
@@ -158,6 +163,114 @@ router.get('/overall', (req: Request, res: Response) => {
     const response = {
       overall: {
         availability_percentage: overallPercentage
+      },
+      timeline: timeline
+    };
+    
+    res.json(response);
+  } catch (error) {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+router.get('/injury-days-lost/', (req: Request, res: Response) => {
+  try {
+    const startParam = req.query.start as string;
+    const endParam = req.query.end as string;
+    const interval = (req.query.interval as string) || 'month';
+
+    // Default dates if not provided
+    const startDate = startParam ? new Date(startParam) : new Date('2025-01-01');
+    const endDate = endParam ? new Date(endParam) : new Date('2025-12-31');
+
+    // Validate dates
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      return res.status(400).json({ error: 'Invalid date format. Use YYYY-MM-DD.' });
+    }
+
+    if (startDate > endDate) {
+      return res.status(400).json({ error: 'Start date must be before end date.' });
+    }
+
+    // Validate interval
+    if (!['day', 'week', 'month'].includes(interval)) {
+      return res.status(400).json({ error: 'Invalid interval. Use: day, week, or month.' });
+    }
+
+    let timeline: Array<{
+      start: string;
+      end: string;
+      status_count: number;
+    }> = [];
+
+    if (interval === 'month') {
+      let current = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+      const endMonth = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
+
+      while (current <= endMonth) {
+        const year = current.getFullYear();
+        const month = current.getMonth();
+        const lastDay = getLastDayOfMonth(year, month + 1);
+        
+        const monthStart = new Date(year, month, 1);
+        const monthEnd = new Date(year, month, lastDay);
+        
+        // Adjust for actual range boundaries
+        const actualStart = monthStart < startDate ? startDate : monthStart;
+        const actualEnd = monthEnd > endDate ? endDate : monthEnd;
+        
+        if (actualStart <= actualEnd) {
+          timeline.push({
+            start: formatDate(actualStart),
+            end: formatDate(actualEnd),
+            status_count: getRandomInjuryDays()
+          });
+        }
+        
+        current.setMonth(current.getMonth() + 1);
+      }
+    } else if (interval === 'week') {
+      let current = getMonday(startDate);
+      
+      while (current <= endDate) {
+        const weekEnd = getSunday(current);
+        
+        // Adjust for actual range boundaries
+        const actualStart = current < startDate ? startDate : current;
+        const actualEnd = weekEnd > endDate ? endDate : weekEnd;
+        
+        if (actualStart <= actualEnd) {
+          timeline.push({
+            start: formatDate(actualStart),
+            end: formatDate(actualEnd),
+            status_count: getRandomInjuryDays()
+          });
+        }
+        
+        current.setDate(current.getDate() + 7);
+      }
+    } else if (interval === 'day') {
+      let current = new Date(startDate);
+      
+      while (current <= endDate) {
+        timeline.push({
+          start: formatDate(current),
+          end: formatDate(current),
+          status_count: getRandomInjuryDays()
+        });
+        
+        current.setDate(current.getDate() + 1);
+      }
+    }
+
+    // Calculate overall status count (average)
+    const overallStatusCount = timeline.length > 0 
+      ? Math.round((timeline.reduce((sum, item) => sum + item.status_count, 0) / timeline.length + Number.EPSILON) * 100) / 100
+      : 0;
+
+    const response = {
+      overall: {
+        status_count: overallStatusCount
       },
       timeline: timeline
     };
