@@ -29,4 +29,8 @@ export interface PaginationResponse<T> {
     per_page: number;
     page: number;
   };
+  links: {
+    next: string;
+  };
+  currentPage: number;
 }
