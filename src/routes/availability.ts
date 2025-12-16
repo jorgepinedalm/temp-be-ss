@@ -2,6 +2,37 @@ import { Router, Request, Response } from 'express';
 
 const router = Router();
 
+// Helper function to generate random percentage
+const getRandomPercentage = (): number => {
+  return Math.round((Math.random() * 100 + Number.EPSILON) * 100) / 100;
+};
+
+// Helper function to format date as YYYY-MM-DD
+const formatDate = (date: Date): string => {
+  return date.toISOString().split('T')[0];
+};
+
+// Helper function to get last day of month
+const getLastDayOfMonth = (year: number, month: number): number => {
+  return new Date(year, month, 0).getDate();
+};
+
+// Helper function to get Monday of the week containing the date
+const getMonday = (date: Date): Date => {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  return new Date(d.setDate(diff));
+};
+
+// Helper function to get Sunday of the week containing the date
+const getSunday = (date: Date): Date => {
+  const monday = getMonday(date);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  return sunday;
+};
+
 router.get('/overview', (req: Request, res: Response) => {
   try {
     const response = {
@@ -21,6 +52,114 @@ router.get('/overview', (req: Request, res: Response) => {
       },
       status_percentage: 48.78,
       vs_last_year: 48.78
+    };
+    
+    res.json(response);
+  } catch (error) {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+router.get('/overall', (req: Request, res: Response) => {
+  try {
+    const startParam = req.query.start as string;
+    const endParam = req.query.end as string;
+    const interval = (req.query.interval as string) || 'month';
+
+    // Default dates if not provided
+    const startDate = startParam ? new Date(startParam) : new Date('2025-01-01');
+    const endDate = endParam ? new Date(endParam) : new Date('2025-12-31');
+
+    // Validate dates
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      return res.status(400).json({ error: 'Invalid date format. Use YYYY-MM-DD.' });
+    }
+
+    if (startDate > endDate) {
+      return res.status(400).json({ error: 'Start date must be before end date.' });
+    }
+
+    // Validate interval
+    if (!['day', 'week', 'month'].includes(interval)) {
+      return res.status(400).json({ error: 'Invalid interval. Use: day, week, or month.' });
+    }
+
+    let timeline: Array<{
+      start: string;
+      end: string;
+      availability_percentage: number;
+    }> = [];
+
+    if (interval === 'month') {
+      let current = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+      const endMonth = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
+
+      while (current <= endMonth) {
+        const year = current.getFullYear();
+        const month = current.getMonth();
+        const lastDay = getLastDayOfMonth(year, month + 1);
+        
+        const monthStart = new Date(year, month, 1);
+        const monthEnd = new Date(year, month, lastDay);
+        
+        // Adjust for actual range boundaries
+        const actualStart = monthStart < startDate ? startDate : monthStart;
+        const actualEnd = monthEnd > endDate ? endDate : monthEnd;
+        
+        if (actualStart <= actualEnd) {
+          timeline.push({
+            start: formatDate(actualStart),
+            end: formatDate(actualEnd),
+            availability_percentage: getRandomPercentage()
+          });
+        }
+        
+        current.setMonth(current.getMonth() + 1);
+      }
+    } else if (interval === 'week') {
+      let current = getMonday(startDate);
+      
+      while (current <= endDate) {
+        const weekEnd = getSunday(current);
+        
+        // Adjust for actual range boundaries
+        const actualStart = current < startDate ? startDate : current;
+        const actualEnd = weekEnd > endDate ? endDate : weekEnd;
+        
+        if (actualStart <= actualEnd) {
+          timeline.push({
+            start: formatDate(actualStart),
+            end: formatDate(actualEnd),
+            availability_percentage: getRandomPercentage()
+          });
+        }
+        
+        current.setDate(current.getDate() + 7);
+      }
+    } else if (interval === 'day') {
+      let current = new Date(startDate);
+      
+      while (current <= endDate) {
+        timeline.push({
+          start: formatDate(current),
+          end: formatDate(current),
+          availability_percentage: getRandomPercentage()
+        });
+        
+        current.setDate(current.getDate() + 1);
+      }
+    }
+
+    // Calculate overall availability percentage (average)
+    const overallPercentage = timeline.length > 0 
+      ? Math.round((timeline.reduce((sum, item) => sum + item.availability_percentage, 0) / timeline.length + Number.EPSILON) * 100) / 100
+      : 0;
+
+    const response = {
+      overall: {
+        availability_percentage: overallPercentage
+      },
+      timeline: timeline
     };
     
     res.json(response);

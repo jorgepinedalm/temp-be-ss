@@ -23,7 +23,8 @@ app.get('/', (req, res) => {
     endpoints: [
       'GET /institutions/teams/',
       'GET /institutions/athletes/',
-      'GET /availability/overview'
+      'GET /availability/overview',
+      'GET /availability/overall'
     ]
   });
 });
@@ -44,7 +45,8 @@ app.listen(PORT, () => {
   console.log(`📍 API URL: http://localhost:${PORT}`);
   console.log(`📊 Teams endpoint: http://localhost:${PORT}/institutions/teams/`);
   console.log(`🏃 Athletes endpoint: http://localhost:${PORT}/institutions/athletes/`);
-  console.log(`📈 Availability endpoint: http://localhost:${PORT}/availability/overview`);
+  console.log(`📈 Availability overview: http://localhost:${PORT}/availability/overview`);
+  console.log(`📈 Availability overall: http://localhost:${PORT}/availability/overall`);
 });
 
 export default app;
