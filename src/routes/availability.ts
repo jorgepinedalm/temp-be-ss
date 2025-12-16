@@ -12,6 +12,11 @@ const getRandomInjuryDays = (): number => {
   return Math.floor(Math.random() * 36) + 15; // Random integer between 15 and 50
 };
 
+// Helper function to generate random unavailable days (0-50)
+const getRandomUnavailableDays = (): number => {
+  return Math.floor(Math.random() * 51); // Random integer between 0 and 50
+};
+
 // Helper function to format date as YYYY-MM-DD
 const formatDate = (date: Date): string => {
   return date.toISOString().split('T')[0];
@@ -271,6 +276,128 @@ router.get('/injury-days-lost/', (req: Request, res: Response) => {
     const response = {
       overall: {
         status_count: overallStatusCount
+      },
+      timeline: timeline
+    };
+    
+    res.json(response);
+  } catch (error) {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+router.get('/unavailable-days', (req: Request, res: Response) => {
+  try {
+    const startParam = req.query.start_date as string;
+    const endParam = req.query.end_date as string;
+    const interval = (req.query.interval as string) || 'month';
+
+    // Default dates if not provided
+    const startDate = startParam ? new Date(startParam) : new Date('2025-01-01');
+    const endDate = endParam ? new Date(endParam) : new Date('2025-12-31');
+
+    // Validate dates
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      return res.status(400).json({ error: 'Invalid date format. Use YYYY-MM-DD.' });
+    }
+
+    if (startDate > endDate) {
+      return res.status(400).json({ error: 'Start date must be before end date.' });
+    }
+
+    // Validate interval
+    if (!['week', 'month'].includes(interval)) {
+      return res.status(400).json({ error: 'Invalid interval. Use: week or month.' });
+    }
+
+    let timeline: Array<{
+      start: string;
+      end: string;
+      modified: number;
+      injured: number;
+      sick: number;
+      status_count: number;
+    }> = [];
+
+    if (interval === 'month') {
+      let current = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+      const endMonth = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
+
+      while (current <= endMonth) {
+        const year = current.getFullYear();
+        const month = current.getMonth();
+        const lastDay = getLastDayOfMonth(year, month + 1);
+        
+        const monthStart = new Date(year, month, 1);
+        const monthEnd = new Date(year, month, lastDay);
+        
+        // Adjust for actual range boundaries
+        const actualStart = monthStart < startDate ? startDate : monthStart;
+        const actualEnd = monthEnd > endDate ? endDate : monthEnd;
+        
+        if (actualStart <= actualEnd) {
+          const modified = getRandomUnavailableDays();
+          const injured = getRandomUnavailableDays();
+          const sick = getRandomUnavailableDays();
+          
+          timeline.push({
+            start: formatDate(actualStart),
+            end: formatDate(actualEnd),
+            modified: modified,
+            injured: injured,
+            sick: sick,
+            status_count: modified + injured + sick
+          });
+        }
+        
+        current.setMonth(current.getMonth() + 1);
+      }
+    } else if (interval === 'week') {
+      let current = getMonday(startDate);
+      
+      while (current <= endDate) {
+        const weekEnd = getSunday(current);
+        
+        // Adjust for actual range boundaries
+        const actualStart = current < startDate ? startDate : current;
+        const actualEnd = weekEnd > endDate ? endDate : weekEnd;
+        
+        if (actualStart <= actualEnd) {
+          const modified = getRandomUnavailableDays();
+          const injured = getRandomUnavailableDays();
+          const sick = getRandomUnavailableDays();
+          
+          timeline.push({
+            start: formatDate(actualStart),
+            end: formatDate(actualEnd),
+            modified: modified,
+            injured: injured,
+            sick: sick,
+            status_count: modified + injured + sick
+          });
+        }
+        
+        current.setDate(current.getDate() + 7);
+      }
+    }
+
+    // Calculate totals for breakdown and overall
+    const totals = timeline.reduce((acc, item) => {
+      acc.modified += item.modified;
+      acc.injured += item.injured;
+      acc.sick += item.sick;
+      acc.total += item.status_count;
+      return acc;
+    }, { modified: 0, injured: 0, sick: 0, total: 0 });
+
+    const response = {
+      overall: {
+        status_count: totals.total,
+        breakdown: {
+          "2": totals.modified,
+          "3": totals.injured,
+          "4": totals.sick
+        }
       },
       timeline: timeline
     };
