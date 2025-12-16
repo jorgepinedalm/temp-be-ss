@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import institutionsRoutes from './routes/institutions';
+import availabilityRoutes from './routes/availability';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -12,6 +13,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // Routes
 app.use('/institutions', institutionsRoutes);
+app.use('/availability', availabilityRoutes);
 
 // Health check endpoint
 app.get('/', (req, res) => {
@@ -20,7 +22,8 @@ app.get('/', (req, res) => {
     version: '1.0.0',
     endpoints: [
       'GET /institutions/teams/',
-      'GET /institutions/athletes/'
+      'GET /institutions/athletes/',
+      'GET /availability/overview'
     ]
   });
 });
@@ -41,6 +44,7 @@ app.listen(PORT, () => {
   console.log(`📍 API URL: http://localhost:${PORT}`);
   console.log(`📊 Teams endpoint: http://localhost:${PORT}/institutions/teams/`);
   console.log(`🏃 Athletes endpoint: http://localhost:${PORT}/institutions/athletes/`);
+  console.log(`📈 Availability endpoint: http://localhost:${PORT}/availability/overview`);
 });
 
 export default app;
