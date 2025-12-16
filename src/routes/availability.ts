@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import { teamsData } from '../data/teams';
 
 const router = Router();
 
@@ -15,6 +16,16 @@ const getRandomInjuryDays = (): number => {
 // Helper function to generate random unavailable days (0-50)
 const getRandomUnavailableDays = (): number => {
   return Math.floor(Math.random() * 51); // Random integer between 0 and 50
+};
+
+// Helper function to generate random percentage for table (10-100)
+const getRandomTablePercentage = (): number => {
+  return Math.round((Math.random() * 90 + 10 + Number.EPSILON) * 100) / 100;
+};
+
+// Helper function to generate random days for table (10-50)
+const getRandomTableDays = (): number => {
+  return Math.floor(Math.random() * 41) + 10; // Random integer between 10 and 50
 };
 
 // Helper function to format date as YYYY-MM-DD
@@ -400,6 +411,147 @@ router.get('/unavailable-days', (req: Request, res: Response) => {
         }
       },
       timeline: timeline
+    };
+    
+    res.json(response);
+  } catch (error) {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+router.get('/overview/table', (req: Request, res: Response) => {
+  try {
+    const startParam = req.query.start_date as string;
+    const endParam = req.query.end_date as string;
+    const interval = (req.query.interval as string) || 'month';
+    const status = req.query.status as string;
+    const metric = (req.query.metric as string) || 'percentage';
+    const teamIdParam = req.query.team_id as string;
+    const athleteIdParam = req.query.athlete_id as string;
+
+    // Default dates if not provided
+    const startDate = startParam ? new Date(startParam) : new Date('2025-01-01');
+    const endDate = endParam ? new Date(endParam) : new Date('2025-12-31');
+
+    // Validate dates
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      return res.status(400).json({ error: 'Invalid date format. Use YYYY-MM-DD.' });
+    }
+
+    if (startDate > endDate) {
+      return res.status(400).json({ error: 'Start date must be before end date.' });
+    }
+
+    // Validate interval
+    if (!['day', 'week', 'month'].includes(interval)) {
+      return res.status(400).json({ error: 'Invalid interval. Use: day, week, or month.' });
+    }
+
+    // Validate metric
+    if (!['percentage', 'days'].includes(metric)) {
+      return res.status(400).json({ error: 'Invalid metric. Use: percentage or days.' });
+    }
+
+    // Generate headers (time periods)
+    let headers: Array<{ start: string; end: string }> = [];
+    
+    if (interval === 'month') {
+      let current = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+      const endMonth = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
+
+      while (current <= endMonth) {
+        const year = current.getFullYear();
+        const month = current.getMonth();
+        const lastDay = getLastDayOfMonth(year, month + 1);
+        
+        const monthStart = new Date(year, month, 1);
+        const monthEnd = new Date(year, month, lastDay);
+        
+        const actualStart = monthStart < startDate ? startDate : monthStart;
+        const actualEnd = monthEnd > endDate ? endDate : monthEnd;
+        
+        if (actualStart <= actualEnd) {
+          headers.push({
+            start: formatDate(actualStart),
+            end: formatDate(actualEnd)
+          });
+        }
+        
+        current.setMonth(current.getMonth() + 1);
+      }
+    } else if (interval === 'week') {
+      let current = getMonday(startDate);
+      
+      while (current <= endDate) {
+        const weekEnd = getSunday(current);
+        
+        const actualStart = current < startDate ? startDate : current;
+        const actualEnd = weekEnd > endDate ? endDate : weekEnd;
+        
+        if (actualStart <= actualEnd) {
+          headers.push({
+            start: formatDate(actualStart),
+            end: formatDate(actualEnd)
+          });
+        }
+        
+        current.setDate(current.getDate() + 7);
+      }
+    } else if (interval === 'day') {
+      let current = new Date(startDate);
+      
+      while (current <= endDate) {
+        headers.push({
+          start: formatDate(current),
+          end: formatDate(current)
+        });
+        
+        current.setDate(current.getDate() + 1);
+      }
+    }
+
+    // Generate timeline rows with random values
+    const generateTimelineRows = () => {
+      return headers.map(header => ({
+        start: header.start,
+        end: header.end,
+        value: metric === 'percentage' ? getRandomTablePercentage() : getRandomTableDays()
+      }));
+    };
+
+    let body: any[] = [];
+
+    if (status) {
+      // When status is defined - show teams structure
+      let teamsToShow = teamsData;
+      
+      // Filter by team_id if provided
+      if (teamIdParam) {
+        const teamId = parseInt(teamIdParam);
+        teamsToShow = teamsData.filter(team => team.id === teamId);
+      }
+      
+      body = teamsToShow.map(team => ({
+        team: team,
+        timeline_rows: generateTimelineRows()
+      }));
+      
+    } else {
+      // When status is not defined - show status structure
+      const statuses = [1, 2, 3, 4];
+      
+      body = statuses.map(statusId => ({
+        status: statusId,
+        rows: teamsData.map(team => ({
+          team: team,
+          timeline_rows: generateTimelineRows()
+        }))
+      }));
+    }
+
+    const response = {
+      headers: headers,
+      body: body
     };
     
     res.json(response);
