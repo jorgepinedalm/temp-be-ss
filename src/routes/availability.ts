@@ -452,6 +452,45 @@ router.get('/overview/table', (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Invalid metric. Use: percentage or days.' });
     }
 
+    // Helper function to generate random team names
+    const generateRandomTeamName = (): string => {
+      const teamNames = [
+        'Lions FC', 'Eagles United', 'Panthers SC', 'Tigers Athletic', 'Wolves Club',
+        'Hawks Team', 'Bears FC', 'Sharks United', 'Ravens SC', 'Falcons Athletic',
+        'Dragons Club', 'Phoenix Team', 'Thunder FC', 'Lightning United', 'Storm SC'
+      ];
+      return teamNames[Math.floor(Math.random() * teamNames.length)];
+    };
+
+    // Helper function to generate random athlete names
+    const generateRandomAthleteName = (): string => {
+      const firstNames = [
+        'Daniel', 'Maria', 'Carlos', 'Ana', 'Luis', 'Sofia', 'Miguel', 'Elena', 
+        'Jorge', 'Carmen', 'David', 'Isabel', 'Pedro', 'Lucia', 'Antonio'
+      ];
+      const lastNames = [
+        'Garcia', 'Rodriguez', 'Martinez', 'Lopez', 'Hernandez', 'Gonzalez', 
+        'Perez', 'Sanchez', 'Ramirez', 'Cruz', 'Torres', 'Flores', 'Gomez', 'Diaz', 'Ruiz'
+      ];
+      const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
+      const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
+      return `${firstName} ${lastName}`;
+    };
+
+    // Helper function to generate team initials
+    const generateTeamInitials = (teamName: string): string => {
+      return teamName.split(' ').map(word => word.charAt(0)).join('').toUpperCase().substring(0, 3);
+    };
+
+    // Statuses object (always included)
+    const statuses = {
+      "1": { id: 1, name: "Available" },
+      "2": { id: 2, name: "Modified" },
+      "3": { id: 3, name: "Injured" },
+      "4": { id: 4, name: "Sick" },
+      "5": { id: 5, name: "Away" }
+    };
+
     // Generate headers (time periods)
     let headers: Array<{ start: string; end: string }> = [];
     
@@ -520,8 +559,25 @@ router.get('/overview/table', (req: Request, res: Response) => {
     };
 
     let body: any[] = [];
+    let profiles: any = {};
 
-    if (status) {
+    if (athleteIdParam) {
+      // When athlete_id is defined - show individual athlete
+      const athleteId = parseInt(athleteIdParam);
+      const athleteName = generateRandomAthleteName();
+      
+      profiles[athleteId.toString()] = {
+        id: athleteId,
+        full_name: athleteName,
+        photo: null
+      };
+
+      body = [{
+        id: athleteId,
+        timeline_rows: generateTimelineRows()
+      }];
+
+    } else if (status) {
       // When status is defined - show teams structure
       let teamsToShow = teamsData;
       
@@ -531,10 +587,23 @@ router.get('/overview/table', (req: Request, res: Response) => {
         teamsToShow = teamsData.filter(team => team.id === teamId);
       }
       
-      body = teamsToShow.map(team => ({
-        team: team,
-        timeline_rows: generateTimelineRows()
-      }));
+      body = teamsToShow.map(team => {
+        const teamName = generateRandomTeamName();
+        const initials = generateTeamInitials(teamName);
+        
+        profiles[team.id.toString()] = {
+          id: team.id,
+          name: teamName,
+          image: "",
+          initials: initials,
+          color: "#FFFFFF"
+        };
+
+        return {
+          id: team.id,
+          timeline_rows: generateTimelineRows()
+        };
+      });
       
     } else {
       // When status is not defined - show status structure
@@ -542,14 +611,23 @@ router.get('/overview/table', (req: Request, res: Response) => {
       
       body = statuses.map(statusId => ({
         status: statusId,
-        rows: teamsData.map(team => ({
-          team: team,
-          timeline_rows: generateTimelineRows()
-        }))
+        rows: teamsData.map(team => {
+          const teamName = generateRandomTeamName();
+          const initials = generateTeamInitials(teamName);
+          
+          return {
+            id: team.id,
+            timeline_rows: generateTimelineRows()
+          };
+        })
       }));
+      
+      // profiles remains empty when status is not defined
     }
 
     const response = {
+      statuses: statuses,
+      profiles: profiles,
       headers: headers,
       body: body
     };
