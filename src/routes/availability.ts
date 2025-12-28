@@ -482,6 +482,20 @@ router.get('/overview/table', (req: Request, res: Response) => {
       return teamName.split(' ').map(word => word.charAt(0)).join('').toUpperCase().substring(0, 3);
     };
 
+    // Helper function to generate random athlete IDs
+    const generateAthleteIds = (count: number): number[] => {
+      const ids: number[] = [];
+      for (let i = 0; i < count; i++) {
+        ids.push(Math.floor(Math.random() * 9000) + 1000); // Random 4-digit IDs
+      }
+      return ids;
+    };
+
+    // Helper function to parse athlete IDs from parameter
+    const parseAthleteIds = (athleteIdParam: string): number[] => {
+      return athleteIdParam.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
+    };
+
     // Statuses object (always included)
     const statuses = {
       "1": { id: 1, name: "Available" },
@@ -561,33 +575,63 @@ router.get('/overview/table', (req: Request, res: Response) => {
     let body: any[] = [];
     let profiles: any = {};
 
-    if (athleteIdParam) {
-      // When athlete_id is defined - show individual athlete
-      const athleteId = parseInt(athleteIdParam);
-      const athleteName = generateRandomAthleteName();
+    if (teamIdParam) {
+      // When team_id is defined - show athletes from the team
+      const teamId = parseInt(teamIdParam);
+      const team = teamsData.find(t => t.id === teamId);
       
-      profiles[athleteId.toString()] = {
-        id: athleteId,
-        full_name: athleteName,
-        photo: null
-      };
+      if (!team) {
+        return res.status(404).json({ error: 'Team not found.' });
+      }
 
-      body = [{
-        id: athleteId,
-        timeline_rows: generateTimelineRows()
-      }];
+      let athleteIds: number[] = [];
+      
+      if (athleteIdParam) {
+        // If athlete_id is also defined, use those specific athletes
+        athleteIds = parseAthleteIds(athleteIdParam);
+      } else {
+        // Generate random athletes for the team (between 5-15 athletes)
+        const athleteCount = Math.floor(Math.random() * 11) + 5;
+        athleteIds = generateAthleteIds(athleteCount);
+      }
+
+      body = athleteIds.map(athleteId => {
+        const athleteName = generateRandomAthleteName();
+        
+        profiles[athleteId.toString()] = {
+          id: athleteId,
+          full_name: athleteName,
+          photo: null
+        };
+
+        return {
+          id: athleteId,
+          timeline_rows: generateTimelineRows()
+        };
+      });
+
+    } else if (athleteIdParam) {
+      // When athlete_id is defined but team_id is not - show specific athletes
+      const athleteIds = parseAthleteIds(athleteIdParam);
+
+      body = athleteIds.map(athleteId => {
+        const athleteName = generateRandomAthleteName();
+        
+        profiles[athleteId.toString()] = {
+          id: athleteId,
+          full_name: athleteName,
+          photo: null
+        };
+
+        return {
+          id: athleteId,
+          timeline_rows: generateTimelineRows()
+        };
+      });
 
     } else if (status) {
-      // When status is defined - show teams structure
-      let teamsToShow = teamsData;
-      
-      // Filter by team_id if provided
-      if (teamIdParam) {
-        const teamId = parseInt(teamIdParam);
-        teamsToShow = teamsData.filter(team => team.id === teamId);
-      }
-      
-      body = teamsToShow.map(team => {
+      // When status is defined but no team_id or athlete_id - show teams structure
+      body = teamsData.map(team => {
         const teamName = generateRandomTeamName();
         const initials = generateTeamInitials(teamName);
         
@@ -606,10 +650,10 @@ router.get('/overview/table', (req: Request, res: Response) => {
       });
       
     } else {
-      // When status is not defined - show status structure
-      const statuses = [1, 2, 3, 4];
+      // When status is not defined - show status structure with teams
+      const statusIds = [1, 2, 3, 4];
       
-      body = statuses.map(statusId => ({
+      body = statusIds.map(statusId => ({
         status: statusId,
         rows: teamsData.map(team => {
           const teamName = generateRandomTeamName();
