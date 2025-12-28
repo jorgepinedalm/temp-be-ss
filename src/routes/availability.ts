@@ -972,4 +972,313 @@ router.get('/overview/calendar', (req: Request, res: Response) => {
   }
 });
 
+router.get('/overview/versus', (req: Request, res: Response) => {
+  try {
+    const startParam = req.query.start_date as string;
+    const endParam = req.query.end_date as string;
+    const interval = (req.query.interval as string) || 'month';
+    const metric = (req.query.metric as string) || 'percentage';
+    const teamIdParam = req.query.team_id as string;
+    const athleteIdParam = req.query.athlete_id as string;
+    const average = req.query.average === 'true';
+
+    // Default dates if not provided
+    const startDate = startParam ? new Date(startParam) : new Date('2025-01-01');
+    const endDate = endParam ? new Date(endParam) : new Date('2025-12-31');
+
+    // Validate dates
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      return res.status(400).json({ error: 'Invalid date format. Use YYYY-MM-DD.' });
+    }
+
+    if (startDate > endDate) {
+      return res.status(400).json({ error: 'Start date must be before end date.' });
+    }
+
+    // Validate interval
+    if (!['day', 'month', 'year'].includes(interval)) {
+      return res.status(400).json({ error: 'Invalid interval. Use: day, month, or year.' });
+    }
+
+    // Validate metric
+    if (!['percentage', 'days'].includes(metric)) {
+      return res.status(400).json({ error: 'Invalid metric. Use: percentage or days.' });
+    }
+
+    // Helper function to generate random percentage (5-100) for versus endpoint
+    const getRandomVersusPercentage = (): number => {
+      return Math.round((Math.random() * 95 + 5 + Number.EPSILON) * 100) / 100;
+    };
+
+    // Helper function to generate random days (0-31) for versus endpoint
+    const getRandomVersusDays = (): number => {
+      return Math.floor(Math.random() * 32); // 0-31
+    };
+
+    // Helper function to generate status values based on metric
+    const generateStatusValues = () => {
+      const statuses = ['1', '2', '3', '4', '5'];
+      const values: any = {};
+      
+      statuses.forEach(statusId => {
+        values[statusId] = metric === 'percentage' ? getRandomVersusPercentage() : getRandomVersusDays();
+      });
+      
+      return values;
+    };
+
+    // Helper function to generate random team names
+    const generateRandomTeamName = (): string => {
+      const teamNames = [
+        'Lions FC', 'Eagles United', 'Panthers SC', 'Tigers Athletic', 'Wolves Club',
+        'Hawks Team', 'Bears FC', 'Sharks United', 'Ravens SC', 'Falcons Athletic',
+        'Dragons Club', 'Phoenix Team', 'Thunder FC', 'Lightning United', 'Storm SC'
+      ];
+      return teamNames[Math.floor(Math.random() * teamNames.length)];
+    };
+
+    // Helper function to generate random athlete names
+    const generateRandomAthleteName = (): string => {
+      const firstNames = [
+        'Daniel', 'Maria', 'Carlos', 'Ana', 'Luis', 'Sofia', 'Miguel', 'Elena', 
+        'Jorge', 'Carmen', 'David', 'Isabel', 'Pedro', 'Lucia', 'Antonio'
+      ];
+      const lastNames = [
+        'Garcia', 'Rodriguez', 'Martinez', 'Lopez', 'Hernandez', 'Gonzalez', 
+        'Perez', 'Sanchez', 'Ramirez', 'Cruz', 'Torres', 'Flores', 'Gomez', 'Diaz', 'Ruiz'
+      ];
+      const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
+      const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
+      return `${firstName} ${lastName}`;
+    };
+
+    // Helper function to generate team initials
+    const generateTeamInitials = (teamName: string): string => {
+      return teamName.split(' ').map(word => word.charAt(0)).join('').toUpperCase().substring(0, 3);
+    };
+
+    // Helper function to generate random athlete IDs
+    const generateAthleteIds = (count: number): number[] => {
+      const ids: number[] = [];
+      for (let i = 0; i < count; i++) {
+        ids.push(Math.floor(Math.random() * 9000) + 1000); // Random 4-digit IDs
+      }
+      return ids;
+    };
+
+    // Helper function to parse multiple IDs from parameter
+    const parseIds = (idParam: string): number[] => {
+      return idParam.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
+    };
+
+    // Statuses object (always included)
+    const statuses = {
+      "1": { id: 1, name: "Available" },
+      "2": { id: 2, name: "Modified" },
+      "3": { id: 3, name: "Injured" },
+      "4": { id: 4, name: "Sick" },
+      "5": { id: 5, name: "Away" }
+    };
+
+    // Generate headers (time periods)
+    let headers: Array<{ start: string; end: string }> = [];
+    
+    if (interval === 'day') {
+      let current = new Date(startDate);
+      
+      while (current <= endDate) {
+        headers.push({
+          start: formatDate(current),
+          end: formatDate(current)
+        });
+        
+        current.setDate(current.getDate() + 1);
+      }
+    } else if (interval === 'year') {
+      let currentYear = startDate.getFullYear();
+      const endYear = endDate.getFullYear();
+
+      while (currentYear <= endYear) {
+        const yearStart = new Date(currentYear, 0, 1);
+        const yearEnd = new Date(currentYear, 11, 31);
+        
+        // Adjust for actual range boundaries
+        const actualStart = yearStart < startDate ? startDate : yearStart;
+        const actualEnd = yearEnd > endDate ? endDate : yearEnd;
+        
+        if (actualStart <= actualEnd) {
+          headers.push({
+            start: formatDate(actualStart),
+            end: formatDate(actualEnd)
+          });
+        }
+        
+        currentYear++;
+      }
+    } else if (interval === 'month') {
+      let current = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+      const endMonth = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
+
+      while (current <= endMonth) {
+        const year = current.getFullYear();
+        const month = current.getMonth();
+        const lastDay = getLastDayOfMonth(year, month + 1);
+        
+        const monthStart = new Date(year, month, 1);
+        const monthEnd = new Date(year, month, lastDay);
+        
+        // Adjust for actual range boundaries
+        const actualStart = monthStart < startDate ? startDate : monthStart;
+        const actualEnd = monthEnd > endDate ? endDate : monthEnd;
+        
+        if (actualStart <= actualEnd) {
+          headers.push({
+            start: formatDate(actualStart),
+            end: formatDate(actualEnd)
+          });
+        }
+        
+        current.setMonth(current.getMonth() + 1);
+      }
+    }
+
+    let profiles: any = {};
+    let subjectIds: number[] = [];
+
+    // Parse team_id if provided
+    const teamIds = teamIdParam ? parseIds(teamIdParam) : [];
+    const athleteIds = athleteIdParam ? parseIds(athleteIdParam) : [];
+
+    // Determine what to show and populate profiles
+    if (teamIds.length === 1 && !athleteIds.length) {
+      // Single team_id without athlete_id - show athletes from the team
+      const teamId = teamIds[0];
+      const team = teamsData.find(t => t.id === teamId);
+      
+      if (!team) {
+        return res.status(404).json({ error: 'Team not found.' });
+      }
+
+      // Generate random athletes for the team (between 5-15 athletes)
+      const athleteCount = Math.floor(Math.random() * 11) + 5;
+      const generatedAthleteIds = generateAthleteIds(athleteCount);
+      subjectIds = generatedAthleteIds;
+
+      generatedAthleteIds.forEach(athleteId => {
+        const athleteName = generateRandomAthleteName();
+        profiles[athleteId.toString()] = {
+          id: athleteId,
+          full_name: athleteName,
+          photo: null
+        };
+      });
+
+    } else if (teamIds.length === 1 && athleteIds.length > 0) {
+      // Single team_id with athlete_id(s) - show specific athletes from the team
+      const teamId = teamIds[0];
+      const team = teamsData.find(t => t.id === teamId);
+      
+      if (!team) {
+        return res.status(404).json({ error: 'Team not found.' });
+      }
+
+      subjectIds = athleteIds;
+
+      athleteIds.forEach(athleteId => {
+        const athleteName = generateRandomAthleteName();
+        profiles[athleteId.toString()] = {
+          id: athleteId,
+          full_name: athleteName,
+          photo: null
+        };
+      });
+
+    } else if (teamIds.length > 1) {
+      // Multiple team_id - show specific teams
+      subjectIds = teamIds;
+
+      teamIds.forEach(teamId => {
+        const team = teamsData.find(t => t.id === teamId);
+        if (team) { // Only add if team exists
+          const teamName = generateRandomTeamName();
+          const initials = generateTeamInitials(teamName);
+          
+          profiles[teamId.toString()] = {
+            id: teamId,
+            name: teamName,
+            image: "",
+            initials: initials,
+            color: "#E6193C"
+          };
+        }
+      });
+
+      // Filter out non-existent teams
+      subjectIds = subjectIds.filter(teamId => profiles[teamId.toString()]);
+
+    } else if (athleteIds.length > 0) {
+      // Only athlete_id(s) defined - show specific athletes
+      subjectIds = athleteIds;
+
+      athleteIds.forEach(athleteId => {
+        const athleteName = generateRandomAthleteName();
+        profiles[athleteId.toString()] = {
+          id: athleteId,
+          full_name: athleteName,
+          photo: null
+        };
+      });
+
+    } else {
+      // No team_id or athlete_id - show all teams
+      subjectIds = teamsData.map(team => team.id);
+
+      teamsData.forEach(team => {
+        const teamName = generateRandomTeamName();
+        const initials = generateTeamInitials(teamName);
+        
+        profiles[team.id.toString()] = {
+          id: team.id,
+          name: teamName,
+          image: "",
+          initials: initials,
+          color: "#E6193C"
+        };
+      });
+    }
+
+    // Generate body with subjects for each time period
+    const body = headers.map(header => {
+      const subjects = subjectIds.map(subjectId => ({
+        id: subjectId,
+        value: generateStatusValues()
+      }));
+
+      const bodyItem: any = {
+        start: header.start,
+        end: header.end,
+        subjects: subjects
+      };
+
+      // Add average if requested
+      if (average) {
+        bodyItem.averages = generateStatusValues();
+      }
+
+      return bodyItem;
+    });
+
+    const response = {
+      statuses: statuses,
+      profiles: profiles,
+      headers: headers,
+      body: body
+    };
+    
+    res.json(response);
+  } catch (error) {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
 export default router;
