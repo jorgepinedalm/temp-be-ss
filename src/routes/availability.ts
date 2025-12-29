@@ -1281,4 +1281,142 @@ router.get('/overview/versus', (req: Request, res: Response) => {
   }
 });
 
+router.get('/overview/trend', (req: Request, res: Response) => {
+  try {
+    const startParam = req.query.start_date as string;
+    const endParam = req.query.end_date as string;
+    const interval = (req.query.interval as string) || 'month';
+    const teamIdParam = req.query.team_id as string;
+
+    // Default dates if not provided
+    const startDate = startParam ? new Date(startParam) : new Date('2025-01-01');
+    const endDate = endParam ? new Date(endParam) : new Date('2025-12-31');
+
+    // Validate dates
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      return res.status(400).json({ error: 'Invalid date format. Use YYYY-MM-DD.' });
+    }
+
+    if (startDate > endDate) {
+      return res.status(400).json({ error: 'Start date must be before end date.' });
+    }
+
+    // Validate interval
+    if (!['day', 'month', 'year'].includes(interval)) {
+      return res.status(400).json({ error: 'Invalid interval. Use: day, month, or year.' });
+    }
+
+    // Validate team_id (required and must be a single ID)
+    if (!teamIdParam) {
+      return res.status(400).json({ error: 'team_id parameter is required.' });
+    }
+
+    const teamId = parseInt(teamIdParam);
+    if (isNaN(teamId)) {
+      return res.status(400).json({ error: 'Invalid team_id format.' });
+    }
+
+    // Check if team exists
+    const team = teamsData.find(t => t.id === teamId);
+    if (!team) {
+      return res.status(404).json({ error: 'Team not found.' });
+    }
+
+    // Helper function to generate random percentage (5-100) for trend endpoint
+    const getRandomTrendPercentage = (): number => {
+      return Math.round((Math.random() * 95 + 5 + Number.EPSILON) * 100) / 100;
+    };
+
+    // Helper function to generate percentages for all statuses
+    const generateStatusPercentages = () => {
+      const statuses = ['1', '2', '3', '4', '5'];
+      const percentages: any = {};
+      
+      statuses.forEach(statusId => {
+        percentages[statusId] = getRandomTrendPercentage();
+      });
+      
+      return percentages;
+    };
+
+    // Generate headers (time periods)
+    let headers: Array<{ start: string; end: string }> = [];
+    
+    if (interval === 'day') {
+      let current = new Date(startDate);
+      
+      while (current <= endDate) {
+        headers.push({
+          start: formatDate(current),
+          end: formatDate(current)
+        });
+        
+        current.setDate(current.getDate() + 1);
+      }
+    } else if (interval === 'year') {
+      let currentYear = startDate.getFullYear();
+      const endYear = endDate.getFullYear();
+
+      while (currentYear <= endYear) {
+        const yearStart = new Date(currentYear, 0, 1);
+        const yearEnd = new Date(currentYear, 11, 31);
+        
+        // Adjust for actual range boundaries
+        const actualStart = yearStart < startDate ? startDate : yearStart;
+        const actualEnd = yearEnd > endDate ? endDate : yearEnd;
+        
+        if (actualStart <= actualEnd) {
+          headers.push({
+            start: formatDate(actualStart),
+            end: formatDate(actualEnd)
+          });
+        }
+        
+        currentYear++;
+      }
+    } else if (interval === 'month') {
+      let current = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+      const endMonth = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
+
+      while (current <= endMonth) {
+        const year = current.getFullYear();
+        const month = current.getMonth();
+        const lastDay = getLastDayOfMonth(year, month + 1);
+        
+        const monthStart = new Date(year, month, 1);
+        const monthEnd = new Date(year, month, lastDay);
+        
+        // Adjust for actual range boundaries
+        const actualStart = monthStart < startDate ? startDate : monthStart;
+        const actualEnd = monthEnd > endDate ? endDate : monthEnd;
+        
+        if (actualStart <= actualEnd) {
+          headers.push({
+            start: formatDate(actualStart),
+            end: formatDate(actualEnd)
+          });
+        }
+        
+        current.setMonth(current.getMonth() + 1);
+      }
+    }
+
+    // Generate body with percentages for each time period
+    const body = headers.map(header => ({
+      start: header.start,
+      end: header.end,
+      percentages: generateStatusPercentages()
+    }));
+
+    const response = {
+      headers: headers,
+      body: body
+    };
+    
+    res.json(response);
+  } catch (error) {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
 export default router;
