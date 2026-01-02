@@ -996,8 +996,8 @@ router.get('/overview/versus', (req: Request, res: Response) => {
     }
 
     // Validate interval
-    if (!['day', 'month', 'year'].includes(interval)) {
-      return res.status(400).json({ error: 'Invalid interval. Use: day, month, or year.' });
+    if (!['day', 'week', 'month', 'year'].includes(interval)) {
+      return res.status(400).json({ error: 'Invalid interval. Use: day, week, month, or year.' });
     }
 
     // Validate metric
@@ -1093,6 +1093,25 @@ router.get('/overview/versus', (req: Request, res: Response) => {
         });
         
         current.setDate(current.getDate() + 1);
+      }
+    } else if (interval === 'week') {
+      let current = getMonday(startDate);
+      
+      while (current <= endDate) {
+        const weekEnd = getSunday(current);
+        
+        // Adjust for actual range boundaries
+        const actualStart = current < startDate ? startDate : current;
+        const actualEnd = weekEnd > endDate ? endDate : weekEnd;
+        
+        if (actualStart <= actualEnd) {
+          headers.push({
+            start: formatDate(actualStart),
+            end: formatDate(actualEnd)
+          });
+        }
+        
+        current.setDate(current.getDate() + 7);
       }
     } else if (interval === 'year') {
       let currentYear = startDate.getFullYear();
@@ -1302,8 +1321,8 @@ router.get('/overview/trend', (req: Request, res: Response) => {
     }
 
     // Validate interval
-    if (!['day', 'month', 'year'].includes(interval)) {
-      return res.status(400).json({ error: 'Invalid interval. Use: day, month, or year.' });
+    if (!['day', 'week', 'month', 'year'].includes(interval)) {
+      return res.status(400).json({ error: 'Invalid interval. Use: day, week, month, or year.' });
     }
 
     // Validate team_id (required and must be a single ID)
@@ -1352,6 +1371,25 @@ router.get('/overview/trend', (req: Request, res: Response) => {
         });
         
         current.setDate(current.getDate() + 1);
+      }
+    } else if (interval === 'week') {
+      let current = getMonday(startDate);
+      
+      while (current <= endDate) {
+        const weekEnd = getSunday(current);
+        
+        // Adjust for actual range boundaries
+        const actualStart = current < startDate ? startDate : current;
+        const actualEnd = weekEnd > endDate ? endDate : weekEnd;
+        
+        if (actualStart <= actualEnd) {
+          headers.push({
+            start: formatDate(actualStart),
+            end: formatDate(actualEnd)
+          });
+        }
+        
+        current.setDate(current.getDate() + 7);
       }
     } else if (interval === 'year') {
       let currentYear = startDate.getFullYear();
