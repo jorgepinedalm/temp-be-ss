@@ -27,7 +27,9 @@ app.get('/', (req, res) => {
       'GET /availability/overall',
       'GET /availability/injury-days-lost/',
       'GET /availability/unavailable-days',
-      'GET /availability/overview/table'
+      'GET /availability/overview/table',
+      'GET /availability/overview/versus',
+      'GET /availability/overview/trend'
     ]
   });
 });
@@ -53,6 +55,8 @@ app.listen(PORT, () => {
   console.log(`🏥 Injury days lost: http://localhost:${PORT}/availability/injury-days-lost/`);
   console.log(`❌ Unavailable days: http://localhost:${PORT}/availability/unavailable-days`);
   console.log(`📋 Overview table: http://localhost:${PORT}/availability/overview/table`);
+  console.log(`📊 Overview versus: http://localhost:${PORT}/availability/overview/versus`)
+  console.log(`📉 Overview trend: http://localhost:${PORT}/availability/overview/trend`);
 });
 
 export default app;
